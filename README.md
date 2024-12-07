@@ -1,2 +1,2 @@
 ## Project Link
-[`NerdStats`]("https://dw-east.shinyapps.io/nerd-stats/")
+[`NerdStats`](https://dw-east.shinyapps.io/nerd-stats/)
