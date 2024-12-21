@@ -38,7 +38,7 @@ class Pokedex(ShinyDF):
     }
 
     choices["gens"] = {
-        i + 1: f"Generation {i + 1} ({" ".join([v.name for vg in g.version_groups for v in vg.versions])})"
+        i + 1: "Generation {} ({})".format(i + 1, " ".join([v.name for vg in g.version_groups for v in vg.versions]))
         for i, g in enumerate(choices["gens"])
     }
 
