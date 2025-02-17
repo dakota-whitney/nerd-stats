@@ -1,4 +1,4 @@
-from shiny import ui, module, reactive, render
+from shiny import ui, module, reactive, render, req
 import requests, re, matplotlib, pandas as pd
 from utils import ShinyDF
 
@@ -21,17 +21,17 @@ class Trunk(ShinyDF):
         "card_images": "img"
     }
 
-    df_ = requests.get(api_["url"], headers = api_["headers"]).json()["data"]
-    df_ = pd.json_normalize(df_).set_index("id")
-    df_ = df_[~df_["frameType"].isin(["skill", "token"])]
-    df_ = df_.rename(columns = cols_)[cols_.values()]
-    df_ = df_.assign(
-        Frame = ["pendulum" if "pendulum" in f else f for f in df_["Frame"]],
-        Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in df_["Level"]],
-        Thumbnail = [img[0]["image_url_cropped"] for img in df_["img"]],
-        Card = [{"md": img[0]["image_url_small"], "lg": img[0]["image_url"]} for img in df_["img"]]
-    )
-    df_.drop(columns = "img", inplace = True)
+    # df_ = requests.get(api_["url"], headers = api_["headers"]).json()["data"]
+    # df_ = pd.json_normalize(df_).set_index("id")
+    # df_ = df_[~df_["frameType"].isin(["skill", "token"])]
+    # df_ = df_.rename(columns = cols_)[cols_.values()]
+    # df_ = df_.assign(
+    #     Frame = ["pendulum" if "pendulum" in f else f for f in df_["Frame"]],
+    #     Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in df_["Level"]],
+    #     Thumbnail = [img[0]["image_url_cropped"] for img in df_["img"]],
+    #     Card = [{"md": img[0]["image_url_small"], "lg": img[0]["image_url"]} for img in df_["img"]]
+    # )
+    # df_.drop(columns = "img", inplace = True)
 
     filters_ = ["search" if k == "name" else k for k in list(cols_.keys())[:-1] if k != "desc"]
 
@@ -47,6 +47,20 @@ class Trunk(ShinyDF):
         "trap": "#8E44AD",
         "xyz": "#1E1E1E",
     }
+
+    @classmethod
+    def fetch(self):
+        cards = requests.get(self.api_["url"], headers = self.api_["headers"]).json()["data"]
+        cards = pd.json_normalize(cards).set_index("id")
+        cards = cards[~cards["frameType"].isin(["skill", "token"])]
+        cards = cards.rename(columns = self.cols_)[self.cols_.values()]
+        cards = cards.assign(
+            Frame = ["pendulum" if "pendulum" in f else f for f in cards["Frame"]],
+            Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in cards["Level"]],
+            Thumbnail = [img[0]["image_url_cropped"] for img in cards["img"]],
+            Card = [{"md": img[0]["image_url_small"], "lg": img[0]["image_url"]} for img in cards["img"]]
+        )
+        return cards.drop(columns = "img")
 
     @classmethod
     def pie(self, index: pd.Index):
@@ -110,28 +124,31 @@ def u_i(): return ui.page_fluid(
     ui.input_text("search", "Search:", width = "50%"),
     ui.row(
         ui.input_selectize("archetype", "Archetype:",
-            choices = Trunk.get("Archetype").dropna().sort_values().to_list(),
+            choices = [],
             multiple = True
         ),
         ui.input_selectize("race", "Type:",
-            choices = Trunk.get("Type").dropna().sort_values().to_list(),
+            choices = [],
             multiple = True
         )
     ),
     ui.row(
         ui.input_checkbox_group("frameType", "Frame:",
-            choices = Trunk.get("Frame").dropna().to_list(),
-            inline = True
+            choices = []
+            # inline = True
         ),
         ui.input_checkbox_group("attribute", "Attribute:",
-            choices = Trunk.get("Attribute").dropna().to_list(),
-            inline = True
+            choices = []
+            # inline = True
         )
     ),
-    ui.input_checkbox_group("level", "Level:", choices = Trunk.range("Level"), inline = True),
+    ui.input_checkbox_group("level", "Level:",
+        choices = []
+        # inline = True
+    ),
     ui.row(
-        ui.input_slider("atk", "Attack:", min = 0, max = Trunk.get("Attack").max(), value = 0),
-        ui.input_slider("def", "Defense:", min = 0, max = Trunk.get("Defense").max(), value = 0),
+        ui.input_slider("atk", "Attack:", min = 0, max = 5000, value = 0),
+        ui.input_slider("def", "Defense:", min = 0, max = 5000, value = 0),
     ),
     ui.output_data_frame("trunk"),
     ui.output_text("cards"),
@@ -140,12 +157,37 @@ def u_i(): return ui.page_fluid(
 
 @module.server
 def server(input, output, session):
-    inputs = Trunk.get("filters")
+    inputs_ = Trunk.get("filters")
+    trunk_ = reactive.value(Trunk.fetch())
+
+    @reactive.effect
+    def _():
+        trunk = trunk_()
+        print(trunk)
+
+        ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
+        ui.update_selectize("race", choices = trunk["Type"].dropna().sort_values().to_list())
+        ui.update_checkbox_group("frameType",
+            choices = trunk["Frame"].dropna().to_list(),
+            inline = True
+        )
+        ui.update_checkbox_group("attribute",
+            choices = trunk["Attribute"].dropna().to_list(),
+            inline = True
+        )
+
+        levels = range(trunk["Level"].min(), trunk["Level"].max() + 1)
+        ui.update_checkbox_group("level", choices = list(levels), inline = True)
+
+        ui.update_slider("atk", max = trunk["Attack"].max())
+        ui.update_slider("def", max = trunk["Defense"].max())
+
+        Trunk.df_ = trunk
 
     @output
     @render.data_frame
     def trunk():
-        trunk = Trunk({i: input[i]() for i in inputs if input[i]()})
+        trunk = Trunk({i: input[i]() for i in inputs_ if input[i]()})
         return trunk.display() if not trunk.df.empty else trunk.df
     
     @reactive.calc
