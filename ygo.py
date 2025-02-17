@@ -21,18 +21,6 @@ class Trunk(ShinyDF):
         "card_images": "img"
     }
 
-    # df_ = requests.get(api_["url"], headers = api_["headers"]).json()["data"]
-    # df_ = pd.json_normalize(df_).set_index("id")
-    # df_ = df_[~df_["frameType"].isin(["skill", "token"])]
-    # df_ = df_.rename(columns = cols_)[cols_.values()]
-    # df_ = df_.assign(
-    #     Frame = ["pendulum" if "pendulum" in f else f for f in df_["Frame"]],
-    #     Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in df_["Level"]],
-    #     Thumbnail = [img[0]["image_url_cropped"] for img in df_["img"]],
-    #     Card = [{"md": img[0]["image_url_small"], "lg": img[0]["image_url"]} for img in df_["img"]]
-    # )
-    # df_.drop(columns = "img", inplace = True)
-
     filters_ = ["search" if k == "name" else k for k in list(cols_.keys())[:-1] if k != "desc"]
 
     frames_ = {
@@ -137,19 +125,10 @@ def u_i(): return ui.page_fluid(
         )
     ),
     ui.row(
-        ui.input_checkbox_group("frameType", "Frame:",
-            choices = []
-            # inline = True
-        ),
-        ui.input_checkbox_group("attribute", "Attribute:",
-            choices = []
-            # inline = True
-        )
+        ui.input_checkbox_group("frameType", "Frame:", choices = []),
+        ui.input_checkbox_group("attribute", "Attribute:", choices = [])
     ),
-    ui.input_checkbox_group("level", "Level:",
-        choices = []
-        # inline = True
-    ),
+    ui.input_checkbox_group("level", "Level:", choices = []),
     ui.row(
         ui.input_slider("atk", "Attack:", min = 0, max = 5000, value = 0),
         ui.input_slider("def", "Defense:", min = 0, max = 5000, value = 0),
@@ -167,7 +146,6 @@ def server(input, output, session):
     @reactive.effect
     def _():
         trunk = Trunk.fetch.result()
-        print(trunk)
 
         ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
         ui.update_selectize("race", choices = trunk["Type"].dropna().sort_values().to_list())
