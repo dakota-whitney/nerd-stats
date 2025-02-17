@@ -1,6 +1,6 @@
 from shiny import ui, module, reactive, render
-import httpx, re, matplotlib, pandas as pd
-from utils import ShinyDF
+import re, matplotlib, pandas as pd
+from utils import ShinyDF, excel_
 
 class Trunk(ShinyDF):
     api_ = {
@@ -36,23 +36,19 @@ class Trunk(ShinyDF):
         "xyz": "#1E1E1E",
     }
 
-    @classmethod
-    @reactive.extended_task
-    async def fetch(self):
-        client = httpx.AsyncClient()
-        cards = await client.get(self.api_["url"], headers = self.api_["headers"])
-        await client.aclose()
-        cards = cards.json()["data"]
-        cards = pd.json_normalize(cards).set_index("id")
-        cards = cards[~cards["frameType"].isin(["skill", "token"])]
-        cards = cards.rename(columns = self.cols_)[self.cols_.values()]
-        cards = cards.assign(
-            Frame = ["pendulum" if "pendulum" in f else f for f in cards["Frame"]],
-            Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in cards["Level"]],
-            Thumbnail = [img[0]["image_url_cropped"] for img in cards["img"]],
-            Card = [{"md": img[0]["image_url_small"], "lg": img[0]["image_url"]} for img in cards["img"]]
-        )
-        return cards.drop(columns = "img")
+    @staticmethod
+    @reactive.file_reader(excel_)
+    def cards(): return pd.read_excel(
+        excel_,
+        sheet_name = "ygo",
+        index_col = "id",
+        keep_default_na = False,
+        converters = {
+            "Level": lambda x: int(x) if x else pd.NA,
+            "Attack": lambda x: int(x) if x else pd.NA,
+            "Defense": lambda x: int(x) if x else pd.NA,
+        }
+    )
 
     @classmethod
     def pie(self, index: pd.Index):
@@ -73,7 +69,7 @@ class Trunk(ShinyDF):
 
     def __init__(self, filters: dict):
         if not len(filters): return super().__init__(pd.DataFrame())
-        super().__init__(self.df_.drop(columns = ["Thumbnail", "Card"]))
+        super().__init__(self.df_.drop(columns = ["thumbnail", "img_sm", "img_md"]))
 
         for filter, input in filters.items():
             match filter:
@@ -99,8 +95,8 @@ class Trunk(ShinyDF):
         return self
     
     def thumbnail(self, c_id: int): return ui.popover(
-        ui.img(src = self.df_["Thumbnail"][c_id], class_ = "w-50 h-50 img-fluid img-thumbnail"),
-        ui.img(src = self.df_["Card"][c_id]["lg"], height = "600px")
+        ui.img(src = self.df_["thumbnail"][c_id], class_ = "w-50 h-50 img-fluid img-thumbnail"),
+        ui.img(src = self.df_["img_md"][c_id], height = "600px")
     )
     
     def display(self):
@@ -141,11 +137,10 @@ def u_i(): return ui.page_fluid(
 @module.server
 def server(input, output, session):
     inputs_ = Trunk.get("filters")
-    Trunk.fetch()
 
     @reactive.effect
     def _():
-        trunk = Trunk.fetch.result()
+        trunk = Trunk.cards()
 
         ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
         ui.update_selectize("race", choices = trunk["Type"].dropna().sort_values().to_list())
@@ -154,7 +149,7 @@ def server(input, output, session):
             inline = True
         )
         ui.update_checkbox_group("attribute",
-            choices = trunk["Attribute"].dropna().to_list(),
+            choices = [a for a in trunk["Attribute"].dropna() if a],
             inline = True
         )
 

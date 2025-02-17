@@ -1,5 +1,9 @@
 from shiny import render
 import pandas as pd
+import pathlib
+
+dir_ = pathlib.Path(__file__).parent
+excel_ = dir_ / "data.xlsx"
 
 class ShinyDF:
     df_ = pd.DataFrame()
