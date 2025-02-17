@@ -1,5 +1,5 @@
-from shiny import ui, module, reactive, render, req
-import requests, re, matplotlib, pandas as pd
+from shiny import ui, module, reactive, render
+import httpx, re, matplotlib, pandas as pd
 from utils import ShinyDF
 
 class Trunk(ShinyDF):
@@ -49,8 +49,12 @@ class Trunk(ShinyDF):
     }
 
     @classmethod
-    def fetch(self):
-        cards = requests.get(self.api_["url"], headers = self.api_["headers"]).json()["data"]
+    @reactive.extended_task
+    async def fetch(self):
+        client = httpx.AsyncClient()
+        cards = await client.get(self.api_["url"], headers = self.api_["headers"])
+        await client.aclose()
+        cards = cards.json()["data"]
         cards = pd.json_normalize(cards).set_index("id")
         cards = cards[~cards["frameType"].isin(["skill", "token"])]
         cards = cards.rename(columns = self.cols_)[self.cols_.values()]
@@ -158,11 +162,11 @@ def u_i(): return ui.page_fluid(
 @module.server
 def server(input, output, session):
     inputs_ = Trunk.get("filters")
-    trunk_ = reactive.value(Trunk.fetch())
+    Trunk.fetch()
 
     @reactive.effect
     def _():
-        trunk = trunk_()
+        trunk = Trunk.fetch.result()
         print(trunk)
 
         ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
