@@ -2,5 +2,5 @@ shiny==1.2.0
 shinyswatch==0.7.0
 pandas==2.2.2
 matplotlib==3.9.2
-requests==2.32.3
+httpx==0.28.1
 pokebase==1.4.1

@@ -141,10 +141,10 @@ def u_i(): return ui.page_fluid(
 @module.server
 def server(input, output, session):
     inputs_ = Trunk.get("filters")
+    Trunk.fetch()
 
     @reactive.effect
     def _():
-        Trunk.fetch()
         trunk = Trunk.fetch.result()
 
         ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
