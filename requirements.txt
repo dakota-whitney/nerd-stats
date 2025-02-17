@@ -2,5 +2,5 @@ shiny==1.2.0
 shinyswatch==0.7.0
 pandas==2.2.2
 matplotlib==3.9.2
-openpyxl==0.28.1
+openpyxl==3.1.5
 pokebase==1.4.1
