@@ -1,11 +1,14 @@
 from shiny import render
 import pandas as pd
-import pathlib
+from pathlib import Path
 
-dir_ = pathlib.Path(__file__).parent
-excel_ = dir_ / "data.xlsx"
+root_ = Path(__file__).parent
+
+# In case I want to use an excel file instead of an API
+# excel_ = root_ / "data.xlsx"
 
 class ShinyDF:
+    root_ = root_
     df_ = pd.DataFrame()
 
     @staticmethod

@@ -1,10 +1,22 @@
 from shiny import ui, module, reactive, render
-import re, matplotlib, pandas as pd
-from utils import ShinyDF, excel_
-from data import ygo
+import httpx, re, matplotlib, pandas as pd
+from utils import ShinyDF
 
 class Trunk(ShinyDF):
-    filters_ = list(ygo["cols"].keys())[:-1]
+    cols_ =  {
+        "name": "Name",
+        "archetype": "Archetype",
+        "frameType": "Frame",
+        "attribute": "Attribute",
+        "race": "Type",
+        "desc": "Description",
+        "level": "Level",
+        "atk": "Attack",
+        "def": "Defense",
+        "card_images": "img"
+    }
+
+    filters_ = list(cols_.keys())[:-1]
     filters_ = ["search" if k == "name" else k for k in filters_ if k != "desc"]
 
     frames_ = {
@@ -20,19 +32,46 @@ class Trunk(ShinyDF):
         "xyz": "#1E1E1E",
     }
 
-    @staticmethod
-    @reactive.file_reader(excel_)
-    def cards(): return pd.read_excel(
-        excel_,
-        sheet_name = "ygo",
-        index_col = "id",
-        keep_default_na = False,
-        converters = {
-            "Level": lambda x: int(x) if x else pd.NA,
-            "Attack": lambda x: int(x) if x else pd.NA,
-            "Defense": lambda x: int(x) if x else pd.NA,
-        }
-    )
+    @classmethod
+    def normalize(self, cards_df: pd.DataFrame):
+        cards = cards_df.set_index("id")
+        cards = cards[~cards["frameType"].isin(["skill", "token"])]
+        cards = cards.rename(columns = self.cols_)[self.cols_.values()]
+        cards = cards.assign(
+            Frame = ["pendulum" if "pendulum" in f else f for f in cards["Frame"]],
+            Level = [int(lvl) if not pd.isna(lvl) else pd.NA for lvl in cards["Level"]],
+            thumbnail = [img[0]["image_url_cropped"] for img in cards["img"]],
+            img_sm = [img[0]["image_url_small"] for img in cards["img"]],
+            img_md = [img[0]["image_url"] for img in cards["img"]]
+        )
+        return cards.drop(columns = "img")
+
+    @classmethod
+    @reactive.extended_task
+    async def fetch(self, write: str = ""):
+        client = httpx.AsyncClient()
+        cards = await client.get("https://db.ygoprodeck.com/api/v7/cardinfo.php")
+        cards = cards.json()["data"]
+        cards = pd.json_normalize(cards)
+        await client.aclose()
+        cards = self.normalize(cards)
+        if write: cards.to_excel(write, sheet_name = "ygo")
+        self.df_ = cards
+        return cards
+
+    # @classmethod
+    # @reactive.file_reader(excel_)
+    # def data(self): return pd.read_excel(
+    #     self.excel_,
+    #     sheet_name = "ygo",
+    #     index_col = "id",
+    #     keep_default_na = False,
+    #     converters = {
+    #         "Level": lambda x: int(x) if x else pd.NA,
+    #         "Attack": lambda x: int(x) if x else pd.NA,
+    #         "Defense": lambda x: int(x) if x else pd.NA,
+    #     }
+    # )
 
     @classmethod
     def pie(self, index: pd.Index):
@@ -121,10 +160,12 @@ def u_i(): return ui.page_fluid(
 @module.server
 def server(input, output, session):
     inputs_ = Trunk.get("filters")
+    Trunk.fetch()
 
     @reactive.effect
     def _():
-        trunk = Trunk.cards()
+        if Trunk.df_.empty: Trunk.fetch.result()
+        trunk = Trunk.df_
 
         ui.update_selectize("archetype", choices = trunk["Archetype"].dropna().sort_values().to_list())
         ui.update_selectize("race", choices = trunk["Type"].dropna().sort_values().to_list())
@@ -142,8 +183,6 @@ def server(input, output, session):
 
         ui.update_slider("atk", max = trunk["Attack"].max())
         ui.update_slider("def", max = trunk["Defense"].max())
-
-        Trunk.df_ = trunk
 
     @output
     @render.data_frame
