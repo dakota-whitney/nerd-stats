@@ -1,6 +1,6 @@
 from shiny import ui, module, render, reactive
 from utils import ShinyDF
-import matplotlib, pandas as pd, pokebase as pb
+import pandas as pd, pokebase as pb
 
 class Pokedex(ShinyDF):
     df_ = pb.APIResourceList("pokemon")
@@ -141,7 +141,3 @@ def server(input, output, session):
     @output
     @render.plot(transparent = True)
     def type_stats(): return px_.get().pie()
-
-        
-
-

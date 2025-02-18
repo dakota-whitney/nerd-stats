@@ -1,27 +1,11 @@
 from shiny import ui, module, reactive, render
 import re, matplotlib, pandas as pd
 from utils import ShinyDF, excel_
+from data import ygo
 
 class Trunk(ShinyDF):
-    api_ = {
-        "url": "https://db.ygoprodeck.com/api/v7/cardinfo.php",
-        "headers": {"User-Agent": "Chrome/51.0.2704.103"}
-    }
-
-    cols_ = {
-        "name": "Name",
-        "archetype": "Archetype",
-        "frameType": "Frame",
-        "attribute": "Attribute",
-        "race": "Type",
-        "desc": "Description",
-        "level": "Level",
-        "atk": "Attack",
-        "def": "Defense",
-        "card_images": "img"
-    }
-
-    filters_ = ["search" if k == "name" else k for k in list(cols_.keys())[:-1] if k != "desc"]
+    filters_ = list(ygo["cols"].keys())[:-1]
+    filters_ = ["search" if k == "name" else k for k in filters_ if k != "desc"]
 
     frames_ = {
         "effect": "#F5A623",
