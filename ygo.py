@@ -48,30 +48,15 @@ class Trunk(ShinyDF):
 
     @classmethod
     @reactive.extended_task
-    async def fetch(self, write: str = ""):
+    async def fetch(self):
         client = httpx.AsyncClient()
         cards = await client.get("https://db.ygoprodeck.com/api/v7/cardinfo.php")
         cards = cards.json()["data"]
         cards = pd.json_normalize(cards)
         await client.aclose()
         cards = self.normalize(cards)
-        if write: cards.to_excel(write, sheet_name = "ygo")
         self.df_ = cards
         return cards
-
-    # @classmethod
-    # @reactive.file_reader(excel_)
-    # def data(self): return pd.read_excel(
-    #     self.excel_,
-    #     sheet_name = "ygo",
-    #     index_col = "id",
-    #     keep_default_na = False,
-    #     converters = {
-    #         "Level": lambda x: int(x) if x else pd.NA,
-    #         "Attack": lambda x: int(x) if x else pd.NA,
-    #         "Defense": lambda x: int(x) if x else pd.NA,
-    #     }
-    # )
 
     @classmethod
     def pie(self, index: pd.Index):
