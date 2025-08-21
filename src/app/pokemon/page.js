@@ -165,6 +165,7 @@ export default function Pokemon(){
         .then(pkmn => P.getPokemonByName(pkmn))
         .then(pkmn => getPokeData(pkmn))
         .then(pkmn => {
+            pokeRef.current = pkmn;
             setPokemon(pkmn);
             setLoading(false);
         });
