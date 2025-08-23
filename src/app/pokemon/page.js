@@ -201,16 +201,15 @@ export default function Pokemon(){
             }]
         };
 
-        const pieStyle = {
-            display: "flex",
-            flexFlow: "column nowrap",
-            justifyContent: "center",
-            alignItems: "center",
+        const mq = window.matchMedia("(min-width: 768px)");
+
+        const pieOptions = {
+            aspectRatio: mq.matches ? 2 : 1
         };
 
         return (
-            <Container style={pieStyle}>
-                <Pie data={pieData}/>
+            <Container>
+                <Pie data={pieData} options={pieOptions}/>
             </Container>
         );
     };
