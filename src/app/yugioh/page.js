@@ -125,8 +125,15 @@ export default function YuGiOh(){
             }]
         };
 
+        const pieStyle = {
+            display: "flex",
+            flexFlow: "column nowrap",
+            justifyContent: "center",
+            alignItems: "center",
+        };
+
         return (
-            <Container style={{width: "25%", height: "25%"}}>
+            <Container style={pieStyle}>
                 <Pie data={pieData}/>
             </Container>
         );
