@@ -1,5 +1,4 @@
 import "bootswatch/dist/slate/bootstrap.min.css";
-// import "./globals.css";
 import NavBar from "./navbar";
 
 const navLinks = [

@@ -10,7 +10,7 @@ import { titleCase } from '../functions';
 const movesPopover = moves => {
     const movesStyle = {
         overflow: "scroll",
-        "scrollbarWidth": "none",
+        scrollbarWidth: "none",
         height: "150px"
     };
 
